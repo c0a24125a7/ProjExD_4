@@ -155,6 +155,7 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
         self.speed = 6
+        self.state = "active"
 
     def update(self):
         """
@@ -232,13 +233,15 @@ class Enemy(pg.sprite.Sprite):
     
     def __init__(self):
         super().__init__()
-        self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.8)
+        self.original_image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.8)
+        self.image = self.original_image.copy()
         self.rect = self.image.get_rect()
         self.rect.center = random.randint(0, WIDTH), 0
         self.vx, self.vy = 0, +6
         self.bound = random.randint(50, HEIGHT//2)  # 停止位置
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
+        self.emp_active = False
 
     def update(self):
         """
@@ -261,7 +264,7 @@ class Score:
     def __init__(self):
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 0
+        self.value = 10000
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -311,6 +314,37 @@ class Shield(pg.sprite.Sprite):
             return
 
 
+class EMP(pg.sprite.Sprite):
+    """
+    初同時に存在する敵機と爆弾を無効化するクラス
+    """
+    def __init__(self, bombs: pg.sprite.Group, emys: pg.sprite.Group, screen: pg.Surface, life: int):
+        super().__init__()
+        self.bombs = bombs
+        self.emys = emys
+        self.image =  pg.Surface((WIDTH, HEIGHT))
+        pg.draw.rect(self.image, (255, 255, 0), (0, 0, WIDTH, HEIGHT))
+        self.image.set_alpha(100)
+        self.rect = self.image.get_rect()
+        self.life = life
+
+    def activate_emp(self, emys: pg.sprite.Group, bombs: pg.sprite.Group):
+        for emy in emys:
+            if not emy.emp_active:
+                emy.interval = float("inf")
+                emy.image = pg.transform.laplacian(emy.original_image.copy())
+                emy.emp_active = True
+        
+        for bomb in bombs:
+            if bomb.state == "active":
+                bomb.speed /= 2
+                bomb.state = "inactive"
+    
+    def update(self):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+        
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -324,6 +358,7 @@ def main():
     emys = pg.sprite.Group()
     shields = pg.sprite.Group()
     gravitys = pg.sprite.Group()  # 追加2.
+    emps = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -354,6 +389,14 @@ def main():
                 if score.value >= 200:  # 追加2
                     score.value -= 200  # 追加2
                     gravitys.add(Gravity(400))
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_SPACE:
+                    beams.add(Beam(bird))
+                if event.key == pg.K_e:
+                    EMP_COST = 20
+                    if score.value >= EMP_COST:
+                        score.value -= EMP_COST
+                        emps.add(EMP(emys, bombs, screen, 3))
         screen.blit(bg_img, [0, 0])
         gravitys.update()  # 追加2
         gravitys.draw(screen)  # 追加2
@@ -400,6 +443,14 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+            if bomb.state == "active":
+                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return
+            else:
+                pass
 
         bird.update(key_lst, screen)
         beams.update()
@@ -413,6 +464,10 @@ def main():
         shields.update()
         shields.draw(screen)
         score.update(screen)
+        emps.update()
+        for emp in emps:
+            emp.activate_emp(emys, bombs)  
+        emps.draw(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
