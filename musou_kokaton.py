@@ -275,7 +275,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
-    gravitys = pg.sprite.Group()  # 追加2
+    gravitys = pg.sprite.Group()  # 追加2.
 
     tmr = 0
     clock = pg.time.Clock()
