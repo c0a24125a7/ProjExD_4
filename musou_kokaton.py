@@ -246,7 +246,7 @@ class Shield(pg.sprite.Sprite):
     """
     防御壁（シールド）
     - 青い矩形をこうかとんの前方に表示する
-    - life フレーム経過で自滅する
+    - life フレーム経過で消滅する
     """
     def __init__(self, bird: Bird, life: int):
         super().__init__()
@@ -263,10 +263,10 @@ class Shield(pg.sprite.Sprite):
    
         # こうかとんの向きに合わせて回転・位置合わせ
         vx, vy = bird.dire
-        # 角度を計算（画面座標系に合わせて符号調整）
+        # 角度を計算
         angle = math.degrees(math.atan2(-vy, vx))
         self.image = pg.transform.rotozoom(self.image, angle, 1.0)
-        # こうかとんの中心から一体分ずらす（前方に配置）
+        # こうかとんの中心から一体分ずらす
         dist = bird.rect.width
         dx = dist * vx
         dy = dist * vy
@@ -274,7 +274,7 @@ class Shield(pg.sprite.Sprite):
         self.rect.center = (bird.rect.centerx + dx, bird.rect.centery + dy)
         
 
-    def update(self, bird: Bird):
+    def update(self):
         # life を1減算し，0未満なら削除
         self.life -= 1
         if self.life < 0:
@@ -293,7 +293,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
-    shields = pg.sprite.Group()  # Shieldグループ追加
+    shields = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -329,7 +329,7 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
-        # 防御壁と爆弾の衝突：衝突した爆弾は破壊（シールドは残る）
+        # 防御壁と爆弾の衝突：衝突した爆弾は破壊
         for booms in pg.sprite.groupcollide(bombs, shields, True, False):
             exps.add(Explosion(booms, 50))  # 爆発エフェクト
 
@@ -349,8 +349,7 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
-         # シールドはこうかとんの状態に追従して毎フレーム update に bird を渡す
-        shields.update(bird)
+        shields.update()
         shields.draw(screen)
         score.update(screen)
         pg.display.update()
