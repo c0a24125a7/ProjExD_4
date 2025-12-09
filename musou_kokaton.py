@@ -37,6 +37,28 @@ def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
     return x_diff/norm, y_diff/norm
 
 
+class Gravity(pg.sprite.Sprite):
+    """
+    重力場に関するクラス
+    """
+    def __init__(self,life:int):
+        """
+        重力場を生成する
+        引数 life:効果時間
+        """
+        super().__init__()
+        self.image = pg.Surface((WIDTH,HEIGHT))
+        self.rect = self.image.get_rect()
+        pg.draw.rect(self.image,(0,0,0),(0,0,WIDTH,HEIGHT))
+        self.image.set_alpha(200)
+        self.life = life
+
+    
+    def update(self):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
 class Bird(pg.sprite.Sprite):
     """
     ゲームキャラクター（こうかとん）に関するクラス
@@ -301,6 +323,7 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
     shields = pg.sprite.Group()
+    gravitys = pg.sprite.Group()  # 追加2.
 
     tmr = 0
     clock = pg.time.Clock()
@@ -326,7 +349,14 @@ def main():
                     shields.add(Shield(bird, 400))  # 発動時間400フレーム
                     score.value -= 50  # 消費スコア
 
+
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:  # 追加2
+                if score.value >= 200:  # 追加2
+                    score.value -= 200  # 追加2
+                    gravitys.add(Gravity(400))
         screen.blit(bg_img, [0, 0])
+        gravitys.update()  # 追加2
+        gravitys.draw(screen)  # 追加2
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -348,6 +378,17 @@ def main():
         # 防御壁と爆弾の衝突：衝突した爆弾は破壊
         for booms in pg.sprite.groupcollide(bombs, shields, True, False):
             exps.add(Explosion(booms, 50))  # 爆発エフェクト
+        if gravitys:
+            for g in gravitys:
+                for bomb in pg.sprite.spritecollide(g, bombs, True):
+                    exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+                    score.value += 1  # 1点アップ
+
+                for emy in pg.sprite.spritecollide(g, emys, True):
+                    exps.add(Explosion(emy, 100))  # 爆発エフェクト
+                    score.value += 10  # 10点アップ
+
+
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             if bird.state == "hyper":
